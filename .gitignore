@@ -12,3 +12,5 @@ pages/__pycache__/
 *.pyd
 .env
 .env.*
+data/gazetteer/
+data/maps/*.zip
