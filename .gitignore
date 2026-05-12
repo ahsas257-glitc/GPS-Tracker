@@ -1,0 +1,14 @@
+.streamlit/gdrive_service_account.json
+.streamlit/project_settings.json
+.streamlit/secrets.toml
+.streamlit/*.secret
+.streamlit/*credentials*.json
+__pycache__/
+pages/__pycache__/
+.venv/
+.idea/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
