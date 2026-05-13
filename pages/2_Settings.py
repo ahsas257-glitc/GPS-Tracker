@@ -69,7 +69,7 @@ def upsert_dataset(settings: dict, old_name: str, dataset: dict) -> dict:
 
 
 def main() -> None:
-    st.set_page_config(page_title="GPS Tracker Settings", page_icon="GPS", layout="wide", initial_sidebar_state="expanded")
+    st.set_page_config(page_title="GPS Tracker Settings", page_icon=tracker.APP_PAGE_ICON, layout="wide", initial_sidebar_state="expanded")
     tracker.page_style()
     tracker.render_sidebar_nav()
     tracker.require_settings_admin_access()
@@ -361,7 +361,8 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except Exception:
+    except Exception as exc:
+        st.error(f"Runtime error: {type(exc).__name__}")
         tracker.render_professional_error(
             "Settings page temporarily unavailable",
             "A runtime issue occurred while opening Settings. Please refresh once. If it continues, contact the administrator.",

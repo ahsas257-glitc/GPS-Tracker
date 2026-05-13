@@ -149,7 +149,7 @@ def kpi_strip(points: pd.DataFrame, mapped: pd.DataFrame, filtered: pd.DataFrame
 def main() -> None:
     st.set_page_config(
         page_title="GPS Tracker Reports",
-        page_icon="GPS",
+        page_icon=tracker.APP_PAGE_ICON,
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -205,7 +205,7 @@ def main() -> None:
         tracker.safe_dataframe(schema, use_container_width=True, height=320, hide_index=True)
 
     st.markdown('<div class="section-title">Temporal Intelligence</div>', unsafe_allow_html=True)
-    freq = st.segmented_control("Trend granularity", options=["Daily", "Weekly", "Monthly"], default="Daily")
+    freq = tracker.safe_segmented_control("Trend granularity", options=["Daily", "Weekly", "Monthly"], default="Daily")
     freq_map = {"Daily": "D", "Weekly": "W", "Monthly": "M"}
     trend, date_col = build_temporal_trend(filtered, freq=freq_map.get(str(freq), "D"))
     if trend.empty:
@@ -268,7 +268,8 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except Exception:
+    except Exception as exc:
+        st.error(f"Runtime error: {type(exc).__name__}")
         tracker.render_professional_error(
             "Reports page temporarily unavailable",
             "A runtime issue occurred while opening Reports. Please refresh once. If it continues, contact the administrator.",

@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import math
 import re
+import traceback
 import tomllib
 from dataclasses import dataclass
 from html import escape
@@ -145,6 +146,7 @@ DEFAULT_PROJECT_SETTINGS: dict[str, Any] = {
 
 SECRET_SERVICE_ACCOUNT_KEYS = ("gdrive_service_account", "google_service_account", "service_account")
 ADMIN_AUTH_SESSION_KEY = "settings_admin_auth"
+APP_PAGE_ICON = "🛰️"
 
 
 def default_dataset_config(name: str = "Default dataset") -> dict[str, Any]:
@@ -155,6 +157,16 @@ def default_dataset_config(name: str = "Default dataset") -> dict[str, Any]:
         "columns": dict(DEFAULT_PROJECT_SETTINGS["columns"]),
         "quality": dict(DEFAULT_PROJECT_SETTINGS["quality"]),
     }
+
+
+def safe_segmented_control(label: str, options: list[str], default: str, key: str | None = None) -> str:
+    # Compatibility fallback for Streamlit versions that don't support segmented_control.
+    try:
+        value = st.segmented_control(label, options=options, default=default, key=key)
+        return str(value or default)
+    except Exception:
+        index = options.index(default) if default in options else 0
+        return str(st.selectbox(label, options, index=index, key=key))
 
 
 @dataclass(frozen=True)
@@ -1962,10 +1974,7 @@ def location_filter_panel(mapped: pd.DataFrame, key_prefix: str) -> tuple[pd.Dat
 
 def map_studio_controls(key_prefix: str = "dashboard") -> dict[str, Any]:
     base_map = st.selectbox("Map type", list(BASE_MAPS.keys()), index=0, key=f"{key_prefix}_base_map")
-    try:
-        map_layout = st.segmented_control("Layout", list(MAP_LAYOUTS.keys()), default="Balanced", key=f"{key_prefix}_map_layout")
-    except AttributeError:
-        map_layout = st.selectbox("Layout", list(MAP_LAYOUTS.keys()), index=0, key=f"{key_prefix}_map_layout")
+    map_layout = safe_segmented_control("Layout", list(MAP_LAYOUTS.keys()), default="Balanced", key=f"{key_prefix}_map_layout")
     overlays = st.multiselect("Layers", ALL_OVERLAYS, default=DEFAULT_OVERLAYS, key=f"{key_prefix}_map_layers")
     cluster_points = st.toggle("Cluster points", value=True, key=f"{key_prefix}_cluster_points")
     enable_measure = st.toggle("Measure tool", value=False, key=f"{key_prefix}_measure_tool")
@@ -2077,7 +2086,7 @@ def render_quality_html(filtered: pd.DataFrame) -> None:
 
 # Legacy full dashboard kept for reference; the active main below renders the simplified map view.
 def legacy_dashboard_main() -> None:
-    st.set_page_config(page_title="GPS Tracker", page_icon="GPS", layout="wide", initial_sidebar_state="expanded")
+    st.set_page_config(page_title="GPS Tracker", page_icon=APP_PAGE_ICON, layout="wide", initial_sidebar_state="expanded")
     page_style()
     settings = load_project_settings()
     render_sidebar_nav()
@@ -2236,10 +2245,7 @@ def legacy_dashboard_main() -> None:
     st.markdown('<div class="metric-grid">' + ''.join(extra_cards) + '</div>', unsafe_allow_html=True)
 
     st.subheader("GPS Point Data")
-    try:
-        data_view = st.segmented_control("Data view", ["Points", "Quality breakdown", "Source files"], default="Points", key="dashboard_data_view")
-    except AttributeError:
-        data_view = st.selectbox("Data view", ["Points", "Quality breakdown", "Source files"], key="dashboard_data_view")
+    data_view = safe_segmented_control("Data view", ["Points", "Quality breakdown", "Source files"], default="Points", key="dashboard_data_view")
     if data_view == "Points":
         available_columns = display_columns_for(filtered, active_settings)
         if available_columns:
@@ -2269,7 +2275,9 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except Exception:
+    except Exception as exc:
+        print(traceback.format_exc())
+        st.error(f"Runtime error: {type(exc).__name__}")
         render_professional_error(
             "Dashboard temporarily unavailable",
             "A runtime issue occurred while opening the dashboard. Please refresh once. If it continues, contact the administrator.",
