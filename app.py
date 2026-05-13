@@ -1413,10 +1413,10 @@ def read_region_geojson(shp_path_text: str, tolerance: float) -> dict[str, Any]:
 
 
 @st.cache_data(show_spinner=False)
-def read_admin_features(shp_path_text: str, level: int) -> list[AdminFeature]:
+def read_admin_features_cached(shp_path_text: str, level: int) -> tuple[tuple[str, str, str, str, str, tuple[float, float, float, float], tuple[tuple[tuple[float, float], ...], ...]], ...]:
     reader = shapefile.Reader(shp_path_text, encoding="utf-8")
     fields = [field[0] for field in reader.fields[1:]]
-    features: list[AdminFeature] = []
+    features: list[tuple[str, str, str, str, str, tuple[float, float, float, float], tuple[tuple[tuple[float, float], ...], ...]]] = []
     for shape_record in reader.iterShapeRecords():
         attrs = dict(zip(fields, shape_record.record))
         shape = shape_record.shape
@@ -1426,8 +1426,32 @@ def read_admin_features(shp_path_text: str, level: int) -> list[AdminFeature]:
             ring = tuple((float(x), float(y)) for x, y in shape.points[start:end])
             if len(ring) >= 4:
                 rings.append(ring)
-        features.append(AdminFeature(name=str(attrs.get(f"adm{level}_name", "")), pcode=str(attrs.get(f"adm{level}_pcode", "")), parent=str(attrs.get("adm1_name", "")), region=str(attrs.get("regionname", attrs.get("region_nam", ""))), region_code=str(attrs.get("regioncode", attrs.get("region_pco", ""))), bbox=tuple(map(float, shape.bbox)), rings=tuple(rings)))
-    return features
+        features.append((
+            str(attrs.get(f"adm{level}_name", "")),
+            str(attrs.get(f"adm{level}_pcode", "")),
+            str(attrs.get("adm1_name", "")),
+            str(attrs.get("regionname", attrs.get("region_nam", ""))),
+            str(attrs.get("regioncode", attrs.get("region_pco", ""))),
+            tuple(map(float, shape.bbox)),
+            tuple(rings),
+        ))
+    return tuple(features)
+
+
+def read_admin_features(shp_path_text: str, level: int) -> list[AdminFeature]:
+    rows = read_admin_features_cached(shp_path_text, level)
+    return [
+        AdminFeature(
+            name=name,
+            pcode=pcode,
+            parent=parent,
+            region=region,
+            region_code=region_code,
+            bbox=bbox,
+            rings=rings,
+        )
+        for name, pcode, parent, region, region_code, bbox, rings in rows
+    ]
 
 
 def point_in_ring(lon: float, lat: float, ring: tuple[tuple[float, float], ...]) -> bool:
