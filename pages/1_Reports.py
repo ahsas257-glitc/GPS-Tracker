@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
+import traceback
 
 import pandas as pd
 import streamlit as st
@@ -51,10 +52,17 @@ def detect_date_column(df: pd.DataFrame) -> str | None:
     candidates = ["Date_And_Time", "SubmissionDate", "submission_time", "starttime", "start", "date", "Date", "timestamp"]
     for col in candidates:
         if col in df.columns:
-            parsed = pd.to_datetime(df[col], errors="coerce")
+            parsed = parse_datetime_series(df[col])
             if parsed.notna().sum() > 0:
                 return col
     return None
+
+
+def parse_datetime_series(series: pd.Series) -> pd.Series:
+    parsed = pd.to_datetime(series, errors="coerce", format="mixed", utc=True)
+    if not isinstance(parsed, pd.Series):
+        parsed = pd.Series(parsed, index=series.index)
+    return parsed.dt.tz_convert(None)
 
 
 def data_health_summary(points: pd.DataFrame, mapped: pd.DataFrame, filtered: pd.DataFrame, raw: pd.DataFrame, rejected_count: int) -> pd.DataFrame:
@@ -100,7 +108,7 @@ def build_temporal_trend(df: pd.DataFrame, freq: str = "D") -> tuple[pd.DataFram
     if not date_col:
         return pd.DataFrame(), ""
     temp = df.copy()
-    temp["_date"] = pd.to_datetime(temp[date_col], errors="coerce")
+    temp["_date"] = parse_datetime_series(temp[date_col])
     temp = temp[temp["_date"].notna()].copy()
     if temp.empty:
         return pd.DataFrame(), date_col
@@ -246,7 +254,7 @@ def main() -> None:
         )
     with export_cols[2]:
         export_payload = {
-            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "dataset_name": st.session_state.get("gps_dataset_name", ""),
             "kpis": health.to_dict(orient="records"),
             "quality_breakdown": quality_df.to_dict(orient="records"),
@@ -269,8 +277,8 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        st.error(f"Runtime error: {type(exc).__name__}")
+        traceback.print_exc()
         tracker.render_professional_error(
             "Reports page temporarily unavailable",
-            "A runtime issue occurred while opening Reports. Please refresh once. If it continues, contact the administrator.",
+            "Reports could not be prepared for the selected dataset. Please refresh once or adjust the selected dataset filters.",
         )
