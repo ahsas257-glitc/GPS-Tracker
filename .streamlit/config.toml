@@ -8,8 +8,8 @@ showSidebarNavigation = false
 
 [theme]
 base = "dark"
-primaryColor = "#38bdf8"
-backgroundColor = "#020611"
-secondaryBackgroundColor = "#071428"
-textColor = "#e8eefc"
+primaryColor = "#2dd4bf"
+backgroundColor = "#050c16"
+secondaryBackgroundColor = "#0a1827"
+textColor = "#f6fbff"
 font = "sans serif"
